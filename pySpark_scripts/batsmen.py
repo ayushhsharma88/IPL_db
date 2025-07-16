@@ -4,8 +4,8 @@
 #                 *               This Is pySpark script, used to load data in PostgreSQL database                *                  #
 #                 *************************************************************************************************                  #
 #                                                                                                                                    #
-#             Script Name  = players.py                                                                                              #
-#             Description  = This PySpark script reads the 'players.csv' file from HDFS, processes and cleans the data,              #
+#             Script Name  = batsmen.py                                                                                              #
+#             Description  = This PySpark script reads the 'batsmen.csv' file from HDFS, processes and cleans the data,              #
 #                            and writes it to a PostgreSQL database.                                                                 #
 #                            This script is intended for use in data pipelines where player stats are ingested                       #
 #                            from HDFS and stored in a relational database for further analysis or reporting.                        #
@@ -28,23 +28,23 @@ import traceback
 import sys
 
 # --- Start Timer ---
-script_name = "players_script"
+script_name = "batsmen_script"
 start_time = datetime.now()
 execution_date = start_time.date()
 status = "Started"
 
 try:
     # Generate Partition Name
-    table_name = "players"
+    table_name = "batsmen"
     timestamp = start_time.strftime("%Y%m%d_%H%M%S")
     partition_name = f"{table_name}_{timestamp}"
     hdfs_partition_path = f"/partitions/{partition_name}"
 
     # Initiate Spark session
-    spark = SparkSession.builder.appName("Players.csv script").getOrCreate()
+    spark = SparkSession.builder.appName("batsmen.csv script").getOrCreate()
 
     # Read CSV from HDFS
-    players = spark.read.csv('hdfs://localhost:9000/files/players.csv', sep=',', header=True, inferSchema=True)
+    players = spark.read.csv('hdfs://localhost:9000/files/batsmen.csv', sep=',', header=True, inferSchema=True)
 
     # Transformations
     players = players.withColumn("average", col("average").try_cast("int"))
@@ -53,11 +53,11 @@ try:
 
     # Write to PostgreSQL
     players.write.format("jdbc")\
-        .option("url", "jdbc:postgresql_url")\
+        .option("url", "jdbc:postgresql://192.168.1.9:5432/IPL_db")\
         .option("driver", "org.postgresql.Driver")\
-        .option("dbtable", "players")\
-        .option("user", "db_user")\
-        .option("password", "db_password")\
+        .option("dbtable", "batsmen")\
+        .option("user", "postgres")\
+        .option("password", "password")\
         .mode('append')\
         .save()
 
@@ -66,11 +66,11 @@ try:
 
     # Write row count to file
     inserted_count = players.count()
-    with open("/home/hadoop/row_counts/players_count.txt", "w") as f:
+    with open("/home/hadoop/row_counts/batsmen_count.txt", "w") as f:
         f.write(str(inserted_count))
 
     # Log to hdfs_partition_log table
-    conn = psycopg2.connect(dbname="IPL_db", user="db_user", password="db_password", host="localhost")
+    conn = psycopg2.connect(dbname="IPL_db", user="postgres", password="password", host="192.168.1.9")
     cur = conn.cursor()
     date = datetime.today().date()
     cur.execute("""
@@ -87,6 +87,8 @@ except Exception as e:
     status = "Failed"
     print(f"[ERROR] Script failed: {e}")
     traceback.print_exc()
+    sys.exit(1)
+
 
 finally:
     end_time = datetime.now()
@@ -94,7 +96,7 @@ finally:
 
     # Log script run metadata
     try:
-        conn = psycopg2.connect(dbname="IPL_db", user="db_user", password="db_password", host="192.168.1.9")
+        conn = psycopg2.connect(dbname="IPL_db", user="postgres", password="password", host="192.168.1.9")
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO script_execution_log (script_name, execution_date, start_time, end_time, run_time, status)
@@ -107,9 +109,10 @@ finally:
         print(f"[ERROR] Could not log script execution: {e}")
 
 #hadoop command to move file from landing location to archives
-subprocess.run(['hdfs','dfs','-mv','/files/players.csv','/archives'])
+subprocess.run(['hdfs','dfs','-mv','/files/batsmen.csv','/archives'])
 
 print("*****SPARK JOB HAS RUN SUCCESSFULLY.*****")
 print("******TRANSFORMATION HAS BEED DONE.******")
-print("**PLAYERS.CSV FILE COPIED TO ARCHIVES.**")
+print("***BATSMEN.CSV FILE COPIED TO ARCHIVES.**")
 print("*********PLAYERS.CSV HAS LOADED.*********")
+

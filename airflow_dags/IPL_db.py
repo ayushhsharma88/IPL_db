@@ -4,7 +4,7 @@
 #                 *           This Is Airflow Dag, used to run and schedule pySpark scripts in sequence           *                  #
 #                 *************************************************************************************************                  #
 #                                                                                                                                    #
-#             Script Name  = myProject.py                                                                                            #
+#             Script Name  = IPL_db.py                                                                                               #
 #             Description  = This script will run pyspark scripts in order and then mail the status of scripts (success              #
 #                            or failed) and then mail logs to provided mail id.                                                      #
 #             Arguments    = None                                                                                                    #
@@ -34,7 +34,7 @@ default_args = {
     'owner': 'airflow',
     'start_date': datetime(2025, 1, 1),
     'retries': 0,
-    'email': ['your_mail@gmail.com'],
+    'email': ['myproject.dea@gmail.com'],
     'email_on_failure': False,
     'email_on_retry': False,
     'email_on_success': False
@@ -61,16 +61,17 @@ def send_table_count_email(**context):
     task_to_table = {
         "run_matches": "matches",
         "run_deliveries": "deliveries",
-        "run_players": "players"
+        "run_batsmen": "batsmen",
+        "run_bowlers": "bowlers"
     }
 
     # PostgreSQL connection config
     conn = psycopg2.connect(
-        host="localhost",
+        host="192.168.1.9",
         port="5432",
         database="IPL_db",
-        user="db_user",
-        password="db_password"
+        user="postgres",
+        password="password"
     )
 
     cur = conn.cursor()
@@ -87,7 +88,7 @@ def send_table_count_email(**context):
             total = cur.fetchone()[0]
 
             # Attempt to read inserted row count from corresponding file
-            inserted_file = f"path/row_counts/{table}_count.txt"
+            inserted_file = f"/home/hadoop/row_counts/{table}_count.txt"
             if os.path.exists(inserted_file):
                 with open(inserted_file, "r") as f:
                     inserted = int(f.read().strip())
@@ -110,7 +111,7 @@ def send_table_count_email(**context):
     """
 
     send_email(
-        to=["your_mail@gmail.com"],
+        to=["myproject.dea@gmail.com"],
         subject="Row Count Summary - Airflow DAG Success",
         html_content=html_content
     )
@@ -131,7 +132,7 @@ def send_failure_email(**context):
     for ti in failed_tasks:
         try_number = ti.try_number if ti.try_number > 0 else 1
         execution_ts = execution_date.isoformat()
-        log_path = f"log_path/{dag_id}_{ti.task_id}_{execution_ts}.log"
+        log_path = f"/home/hadoop/airflow/cust_logs/{dag_id}_{ti.task_id}_{execution_ts}.log"
 
         if os.path.exists(log_path):
             attached_logs.append(log_path)
@@ -151,7 +152,7 @@ def send_failure_email(**context):
     """
 
     send_email(
-        to=["your_mail@gmail.com"],
+        to=["myproject.dea@gmail.com"],
         subject=f"[Failure] Airflow DAG: {dag_id}",
         html_content=html_content,
         files=attached_logs
@@ -168,10 +169,10 @@ def send_success_email(**context):
 
     attached_logs = []
     for ti in dag_run.get_task_instances():
-        if ti.state == State.SUCCESS and ti.task_id != "generate_report_email":
+        if ti.state == State.SUCCESS and ti.task_id not in ["generate_report_email", "send_failure_email", "send_success_email"]:
             try_number = ti.try_number if ti.try_number > 0 else 1
             execution_ts = execution_date.isoformat()
-            log_path = f"log_path/{dag_id}_{ti.task_id}_{execution_ts}.log"
+            log_path = f"/home/hadoop/airflow/cust_logs/{dag_id}_{ti.task_id}_{execution_ts}.log"
             if os.path.exists(log_path):
                 attached_logs.append(log_path)
 
@@ -184,7 +185,7 @@ def send_success_email(**context):
     """
 
     send_email(
-        to=["your_mail@gmail.com"],
+        to=["myproject.dea@gmail.com"],
         subject=f"[Success] Airflow DAG: {dag_id}",
         html_content=html_content,
         files=attached_logs
@@ -193,19 +194,25 @@ def send_success_email(**context):
 # -------- TASKS --------
 matches_task = BashOperator(
     task_id='run_matches',
-    bash_command='script_path/matches.py',
+    bash_command='/home/hadoop/spark/bin/spark-submit /home/hadoop/scripts/matches.py',
     dag=dag
 )
 
 deliveries_task = BashOperator(
     task_id='run_deliveries',
-    bash_command='script_path/deliveries.py',
+    bash_command='/home/hadoop/spark/bin/spark-submit /home/hadoop/scripts/deliveries.py',
     dag=dag
 )
 
-players_task = BashOperator(
-    task_id='run_players',
-    bash_command='script_path/players.py',
+batsmen_task = BashOperator(
+    task_id='run_batsmen',
+    bash_command='/home/hadoop/spark/bin/spark-submit /home/hadoop/scripts/batsmen.py',
+    dag=dag
+)
+
+bowlers_task = BashOperator(
+    task_id='run_bowlers',
+    bash_command='/home/hadoop/spark/bin/spark-submit /home/hadoop/scripts/bowlers.py',
     dag=dag
 )
 
@@ -238,7 +245,7 @@ final_failure_email = PythonOperator(
 
 # -------- DEPENDENCIES --------
 matches_task >> deliveries_task
-[matches_task, deliveries_task, players_task] >> final_success_email
-[matches_task, deliveries_task, players_task] >> generate_report_task
-[matches_task, deliveries_task, players_task] >> final_failure_email
+[matches_task, deliveries_task, batsmen_task, bowlers_task] >> final_success_email
+[matches_task, deliveries_task, batsmen_task, bowlers_task] >> generate_report_task
+[matches_task, deliveries_task, batsmen_task, bowlers_task] >> final_failure_email
 

@@ -1,3 +1,21 @@
+#====================================================================================================================================#
+#                                                                                                                                    #
+#                 *************************************************************************************************                  #
+#                 *           This Is Airflow Dag, used to run and schedule pySpark scripts in sequence           *                  #
+#                 *************************************************************************************************                  #
+#                                                                                                                                    #
+#             Script Name  = monitoring_script.py                                                                                    #
+#             Description  = This script will track hdfs partition in hadoop and postgresql table.                                   #
+#             Arguments    = None                                                                                                    #
+#             Dependencies = None                                                                                                    #
+#             Author       = Ayush Sharma                                                                                            #
+#             Email        = myproject.dea@gmail.com                                                                                 #
+#             Date         = 18-04-2025 (dd-mm-yyyy format)                                                                          #
+#                                                                                                                                    #
+#                                                                                                                                    #
+#====================================================================================================================================#
+
+
 import subprocess
 import psycopg2
 
@@ -15,7 +33,8 @@ for partition in partitions:
     
     if result.returncode != 0:
         # HDFS partition does not exist → delete data from players and metadata
-        cur.execute("DELETE FROM players WHERE partition_name = %s", (partition,))
+        cur.execute("DELETE FROM batsmen WHERE partition_name = %s", (partition,))
+        cur.execute("DELETE FROM bowlers WHERE partition_name = %s", (partition,))
         cur.execute("DELETE FROM matches WHERE partition_name = %s", (partition,))
         cur.execute("DELETE FROM deliveries WHERE partition_name = %s", (partition,))
         print(f"Deleted rows for missing HDFS partition: {partition}")

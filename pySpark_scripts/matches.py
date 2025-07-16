@@ -69,11 +69,11 @@ try:
 
     #load data to postgreSQL database
     matches.write.format("jdbc")\
-    .option("url","jdbc:postgresql_url")\
+    .option("url","jdbc:postgresql://192.168.1.9:5432/IPL_db")\
     .option("driver","org.postgresql.Driver")\
     .option("dbtable","matches")\
-    .option("user","db_user")\
-    .option("password","db_password")\
+    .option("user","postgres")\
+    .option("password","password")\
     .mode('append')\
     .save()
 
@@ -88,7 +88,7 @@ try:
     #Log to Partition Table
     try:
         conn = psycopg2.connect(
-            dbname="IPL_db", user="db_user", password="db_password", host="localhost"
+            dbname="IPL_db", user="postgres", password="password", host="192.168.1.9"
         )
         cur = conn.cursor()
         date = datetime.today().date()
@@ -101,13 +101,14 @@ try:
         conn.close()
     except Exception as e:
         print(f"[ERROR] Could not log partition: {e}")
-    
+
     status = "Success"
 
 except Exception as e:
     status = "Failed"
     print(f"[ERROR] Script failed: {e}")
     traceback.print_exc()
+    sys.exit(1)
 
 finally:
     end_time = datetime.now()
@@ -115,7 +116,7 @@ finally:
 
     # Log script run metadata
     try:
-        conn = psycopg2.connect(dbname="IPL_db", user="db_user", password="db_password", host="localhost")
+        conn = psycopg2.connect(dbname="IPL_db", user="postgres", password="password", host="192.168.1.9")
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO script_execution_log (script_name, execution_date, start_time, end_time, run_time, status)
@@ -134,3 +135,4 @@ print("*****SPARK JOB HAS RUN SUCCESSFULLY.*****")
 print("******TRANSFORMATION HAS BEED DONE.******")
 print("**MATCHES.CSV FILE COPIED TO ARCHIVES.**")
 print("*********MATCHES.CSV HAS LOADED.*********")
+
