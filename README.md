@@ -53,38 +53,6 @@ This project builds a complete data engineering pipeline for IPL cricket data. I
 
 ---
 
-## Project Structure
-
-```
-project/
-│
-├── dags/
-│   └── ipl_pipeline_dag.py
-│
-├── pyspark_jobs/
-│   ├── clean_data.py
-│   ├── transform_data.py
-│   └── load_to_postgres.py
-│
-├── sql/
-│   └── create_tables.sql
-│
-├── hdfs/
-│   ├── landing/
-│   ├── processed/
-│   └── checkpoints/
-│
-├── logs/
-│
-├── assets/
-│   ├── banner.png
-│   └── architecture.png
-│
-└── README.md
-```
-
----
-
 ## How the Pipeline Works
 
 1. New IPL data files arrive in the HDFS landing folder.
